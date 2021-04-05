@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ghostplay_cleanup_handler() { :; }
 
@@ -80,7 +80,18 @@ ghostplay_command_and_fake() {
 }
 
 ghostplay_exec() {
-  eval "$1"
+  eval "$1 < <(ghostplay_user_input)"
+  echo "II" >> log
+  sleep 2
+}
+
+ghostplay_user_input() {
+  for line in "${ghostplay_user_input[@]}"; do
+   ghostplay_sleep 0.5
+   echo $line
+  done
+  ghostplay_user_input=()
+  echo "AA ${ghostplay_user_input[@]}" >> log
 }
 
 ghostplay_command() {
@@ -120,6 +131,11 @@ ghostplay_directive_flush() {
   ghostplay_buf=""
 }
 
+ghostplay_directive_input() {
+  ghostplay_user_input+=("$@")
+  echo "${ghostplay_user_input[@]}"
+}
+
 ghostplay_directive_end() {
   ghostplay_directive_flush
   ghostplay_mode=""
@@ -132,8 +148,9 @@ ghostplay_directive_sleep() {
 ghostplay_parse_script() {
   ghostplay_mode=""
   ghostplay_buf=""
+  ghostplay_user_input=()
 
-  while IFS= read -r ghostplay_line || [ "$ghostplay_line" ]; do
+  cat "$1" | while IFS= read -r ghostplay_line || [ "$ghostplay_line" ]; do
     ghostplay_work=$ghostplay_line
 
     while [ "$ghostplay_work" != "${ghostplay_work# }" ]; do
@@ -150,7 +167,7 @@ ghostplay_parse_script() {
 
 ghostplay_run() {
   GP_FIRST_PROMPT=1
-  ghostplay_parse_script
+  ghostplay_parse_script "$1"
 }
 
 eval "$(printf "GP_LF='\\012' GP_ESC='\\033'")"
@@ -165,7 +182,7 @@ GP_SOURCE=$1
 trap 'ghostplay_sigint_handler' INT
 trap 'ghostplay_exit_handler' EXIT
 
-ghostplay_run < "$1"
+ghostplay_run "$1"
 
 # workaround: seq2gif is lose the last line.
 echo
